@@ -4,14 +4,12 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
-import android.nfc.Tag;
 import android.os.Build;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.widget.Toast;
 
 import com.google.zxing.Result;
@@ -19,8 +17,7 @@ import com.google.zxing.Result;
 import me.dm7.barcodescanner.zxing.ZXingScannerView;
 
 import static android.Manifest.permission.CAMERA;
-import org.json.JSONException;
-import org.json.JSONObject;
+
 import org.xmlpull.v1.XmlPullParser;
 import org.xmlpull.v1.XmlPullParserException;
 import org.xmlpull.v1.XmlPullParserFactory;
@@ -134,33 +131,49 @@ public class BarcodeScanner extends AppCompatActivity implements ZXingScannerVie
 
     @Override
     public void handleResult(Result result) {
-        final String scanResult = result.getText();
-        //parseXML(scanResult);
+        String scanResult = "";
+        String[] details = new String[6];
+        details = parseXML(result.getText());
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Scan Result");
-        builder.setPositiveButton("OK", new DialogInterface.OnClickListener() {
+        builder.setTitle("Aadhaar Details");
+        builder.setPositiveButton("CANCEL", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                scannerView.resumeCameraPreview(BarcodeScanner.this);
+                startActivity(new Intent(BarcodeScanner.this, MainActivity.class));
+                //scannerView.resumeCameraPreview(BarcodeScanner.this);
             }
         });
-        builder.setNeutralButton("Visit", new DialogInterface.OnClickListener() {
+        builder.setNeutralButton("AUTHENTICATE", new DialogInterface.OnClickListener() {
             @Override
             public void onClick(DialogInterface dialog, int which) {
-                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(scanResult));
-                startActivity(intent);
+//                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(scanResult));
+//                startActivity(intent);
             }
         });
+
+        if(details[0] == null || details[1] == null || details[2] == null || details[3] == null || details[4] == null ){
+            scanResult = "Please scan a valid Aadhaar card.";
+        }else {
+            if(details[4].length() < 5)
+            {
+                scanResult = "UID: " + details[0] + "\n" + "Name: " + details[1] + "\n" + "Gender: " + details[2] + "\n" + "Address: " + details[3] + "\n" + "YOB: " + details[4] + "\n" ;
+            }
+            else
+            {
+                scanResult = "UID: " + details[0] + "\n" + "Name: " + details[1] + "\n" + "Gender: " + details[2] + "\n" + "Address: " + details[3] + "\n" + "DOB: " + details[4] + "\n" ;
+            }
+        }
+
         builder.setMessage(scanResult);
         AlertDialog alert = builder.create();
         alert.show();
-        parseXML(scanResult);
     }
 
-    private void parseXML(String message){
+    private String[] parseXML(String message){
         XmlPullParserFactory parserFactory;
-        String uid = null;
+        String[] details = new String[6];
+        String checkDOB = null;
         try {
             parserFactory = XmlPullParserFactory.newInstance();
             XmlPullParser parser = parserFactory.newPullParser();
@@ -175,18 +188,30 @@ public class BarcodeScanner extends AppCompatActivity implements ZXingScannerVie
 
                     case XmlPullParser.END_TAG:
                         if (name.equals("PrintLetterBarcodeData")){
-                            uid = parser.getAttributeValue(null,"uid");
-                            Toast.makeText(BarcodeScanner.this,uid,Toast.LENGTH_LONG).show();
+                            checkDOB = parser.getAttributeValue(null,"dob");
+                            details[0] = parser.getAttributeValue(null,"uid");
+                            details[1] = parser.getAttributeValue(null,"name");
+                            details[2] = parser.getAttributeValue(null,"gender");
+                            if (checkDOB == null){
+                                details[3] = parser.getAttributeValue(null,"lm") + ", " + parser.getAttributeValue(null,"loc") + ", " + parser.getAttributeValue(null,"po") + ", " + parser.getAttributeValue(null,"dist") + ", " + parser.getAttributeValue(null,"state") + ", " + parser.getAttributeValue(null,"pc");
+                                details[4] = parser.getAttributeValue(null,"yob");
+                            }
+                            else {
+                                details[3] = parser.getAttributeValue(null,"house") + ", " + parser.getAttributeValue(null,"street") + ", " + parser.getAttributeValue(null,"lm") + ", " + parser.getAttributeValue(null,"loc") + ", " + parser.getAttributeValue(null,"po") + ", " + parser.getAttributeValue(null,"dist") + ", " + parser.getAttributeValue(null,"state") + ", " + parser.getAttributeValue(null,"pc");
+                                details[4] = parser.getAttributeValue(null,"dob");
+                            }
+
                         }
                         break;
                 }
                 evetnType = parser.next();
             }
-            Toast.makeText(BarcodeScanner.this,uid,Toast.LENGTH_LONG).show();
+            //Toast.makeText(BarcodeScanner.this,details[2],Toast.LENGTH_LONG).show();
         } catch (XmlPullParserException e) {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
         }
+        return details;
     }
 }
