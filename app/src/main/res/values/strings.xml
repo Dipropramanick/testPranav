@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Universal Id Card</string>
+    <string name="new_user">New User</string>
+    <string name="existing_user">Existing User</string>
+</resources>
